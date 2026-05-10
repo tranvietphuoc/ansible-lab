@@ -769,6 +769,73 @@ Ansible hỗ trợ vòng lặp để chạy cùng 1 task trên nhiều đối t�
 
 ---
 
+## 11. Async Tasks — Lệnh chạy dài
+
+Khi một task cần chạy lâu (ví dụ: backup database, upgrade hệ thống), Ansible có thể bị timeout. Dùng `async` để chạy nền.
+
+```yaml
+# Chạy lệnh dài tối đa 300 giây, kiểm tra mỗi 10 giây
+- name: Backup database (có thể mất 5 phút)
+  ansible.builtin.shell: "/opt/scripts/backup.sh"
+  async: 300           # Timeout tối đa (giây)
+  poll: 10             # Kiểm tra trạng thái mỗi 10 giây
+
+# Fire-and-forget (chạy nền, không chờ kết quả)
+- name: Rebuild search index (chạy nền)
+  ansible.builtin.shell: "/opt/scripts/reindex.sh"
+  async: 3600          # Timeout 1 giờ
+  poll: 0              # Không chờ kết quả
+  register: reindex_job
+
+# Kiểm tra kết quả sau
+- name: Chờ rebuild hoàn tất
+  ansible.builtin.async_status:
+    jid: "{{ reindex_job.ansible_job_id }}"
+  register: job_result
+  until: job_result.finished
+  retries: 60
+  delay: 10
+```
+
+---
+
+## 12. Strategy — Kiểm soát thứ tự chạy
+
+Ansible hỗ trợ nhiều chiến lược chạy tasks:
+
+| Strategy | Mô tả | Dùng khi |
+|----------|-------|---------|
+| `linear` (mặc định) | Chạy từng task trên tất cả hosts trước khi sang task tiếp | An toàn, dễ debug |
+| `free` | Mỗi host chạy tự do, không chờ nhau | Nhanh hơn khi hosts độc lập |
+| `serial` | Chạy trên từng nhóm host (rolling update) | Tránh downtime |
+
+```yaml
+# Strategy free — mỗi host tự chạy
+---
+- name: "Update nhanh"
+  hosts: webservers
+  strategy: free
+  tasks:
+    - name: Nâng cấp packages
+      ansible.builtin.apt:
+        upgrade: safe
+
+# Serial — rolling update (chạy 1 host tại 1 thời điểm)
+---
+- name: "Rolling deploy"
+  hosts: webservers
+  serial: 1              # Chạy 1 host tại 1 thời điểm
+  # serial: "30%"        # Hoặc chạy 30% hosts cùng lúc
+  # serial: [1, 3, 5]    # Vòng 1: 1 host, vòng 2: 3, vòng 3: 5
+  tasks:
+    - name: Deploy
+      ansible.builtin.copy:
+        src: app.tar.gz
+        dest: /opt/app/
+```
+
+---
+
 ## Bảng tra cứu nhanh
 
 | Muốn làm gì | Module | Ví dụ nhanh |

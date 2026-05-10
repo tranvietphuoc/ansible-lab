@@ -360,6 +360,192 @@ Sau tuần 1, bạn nên hiểu:
 
 ---
 
+## Phần 5: Node Labels (Ngày 05 — nâng cao)
+
+### Labels là gì?
+
+**Labels** = nhãn gắn cho nodes. Dùng trong RBAC để phân quyền truy cập. Thay vì quản lý từng node, bạn quản lý theo nhãn.
+
+### Static Labels
+
+Khai báo cố định trong cấu hình `/etc/teleport.yaml` của node:
+
+```yaml
+ssh_service:
+  enabled: "yes"
+  labels:
+    env: production        # Môi trường
+    role: web              # Vai trò
+    team: backend          # Team quản lý
+    region: hcm            # Vùng
+```
+
+### Dynamic Labels
+
+Giá trị **tự động cập nhật** từ lệnh shell:
+
+```yaml
+ssh_service:
+  enabled: "yes"
+  labels:
+    env: production
+  commands:
+    - name: hostname
+      command: ["/bin/hostname"]
+      period: 1h
+    - name: uptime
+      command: ["/usr/bin/uptime", "-p"]
+      period: 5m
+    - name: kernel
+      command: ["/bin/uname", "-r"]
+      period: 24h
+```
+
+### Sử dụng Labels trong RBAC
+
+```yaml
+kind: role
+version: v5
+metadata:
+  name: backend-dev
+spec:
+  allow:
+    logins: [deploy]
+    node_labels:
+      env: staging           # Chỉ vào staging
+      team: backend          # Chỉ máy của team backend
+    # Wildcard: team: "*" = tất cả teams
+```
+
+### Thực hành
+
+```bash
+# Xem labels của nodes
+tctl --auth-server=localhost:3025 nodes ls
+
+# Lọc nodes theo label
+tsh ls env=production
+tsh ls role=web
+```
+
+---
+
+## Phần 6: Machine ID — tbot cho CI/CD
+
+### Machine ID là gì?
+
+**Machine ID** (tbot) cho phép **chương trình/script** (không phải con người) lấy certificate Teleport. Ứng dụng chính: **CI/CD pipeline** — để Jenkins/GitHub Actions có thể SSH vào server deploy code mà không cần mật khẩu người dùng.
+
+### Luồng hoạt động
+
+```
+GitHub Actions / Jenkins
+    |
+    v
+tbot start --oneshot        # Lấy certificate ngắn hạn
+    |
+    v
+ssh -F ./tbot-user/ssh_config user@node   # SSH bằng cert
+    |
+    v
+ansible-playbook deploy.yaml              # Deploy
+    |
+    v
+Certificate tự huỷ (TTL 10-60 phút)
+```
+
+### Ví dụ: GitHub Actions
+
+```yaml
+# .github/workflows/deploy.yaml
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    permissions:
+      id-token: write       # Bắt buộc cho tbot
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cài Teleport
+        uses: teleport-actions/setup@v1
+        with:
+          version: auto
+          proxy: ssh.example.com:443
+
+      - name: Lấy certificate
+        run: tbot start --oneshot -c ./tbot.yaml
+
+      - name: Deploy
+        run: |
+          ansible-playbook -i inventory.ini deploy.yaml \
+            --ssh-common-args="-F ./tbot-user/ssh_config"
+```
+
+### Tại sao quan trọng?
+
+- Không cần lưu SSH key/password trong CI/CD
+- Certificate tự hết hạn (ngắn nhất có thể)
+- Audit log ghi lại CI/CD đã làm gì
+- Hợp với nguyên tắc Zero Trust
+
+---
+
+## Phần 7: Access Requests — Phê duyệt truy cập
+
+### Access Requests là gì?
+
+Thay vì cấp quyền vĩnh viễn, Teleport cho phép user **xin quyền tạm thời** và cần người khác phê duyệt.
+
+```
+Developer: "Tôi cần SSH vào production để debug lỗi"
+    |
+    v
+tsh request create --roles=prod-access --reason="Debug issue #123"
+    |
+    v
+Admin nhận thông báo → Phê duyệt / Từ chối
+    |
+    v
+Developer có quyền prod-access trong 4 giờ → Tự hết hạn
+```
+
+### Thực hành (Lab giới thiệu)
+
+```bash
+# Tạo role yêu cầu phê duyệt
+cat <<'EOF' | tctl --auth-server=localhost:3025 create -f
+kind: role
+version: v5
+metadata:
+  name: prod-access
+spec:
+  allow:
+    logins: [root]
+    node_labels:
+      env: production
+    request:
+      roles: [prod-access]
+      thresholds:
+        - approve: 1    # Cần ít nhất 1 người phê duyệt
+          deny: 1
+  options:
+    max_session_ttl: 4h0m0s
+EOF
+```
+
+### Tại sao quan trọng?
+
+- **Just-in-Time Access**: Quyền chỉ có khi cần, tự hết hạn
+- **Audit trail**: Ghi lại ai xin quyền, ai phê duyệt, lý do gì
+- **Compliance**: Đáp ứng yêu cầu SOC2, ISO 27001
+
+---
+
 ## Tóm tắt
 
 | Khái niệm | Giải thích ngắn |
@@ -370,6 +556,10 @@ Sau tuần 1, bạn nên hiểu:
 | RBAC | Phân quyền theo vai trò (Role → Login → Node Label) |
 | Session Recording | Teleport ghi lại mọi phiên SSH để audit |
 | Certificate | Chứng chỉ ngắn hạn thay thế SSH key truyền thống |
+| Node Labels | Nhãn gắn cho nodes — dùng trong RBAC để phân quyền |
+| Machine ID (tbot) | Cho CI/CD lấy certificate ngắn hạn, không cần mật khẩu |
+| Access Requests | Cơ chế xin/phê duyệt quyền tạm thời |
 
 **Trước đó:** [← SSH căn bản](01-ssh-co-ban.md)
 **Tiếp theo:** [Ansible căn bản →](03-ansible-co-ban.md)
+
