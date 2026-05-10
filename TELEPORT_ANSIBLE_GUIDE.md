@@ -1,10 +1,10 @@
-# Teleport + Ansible: Huong dan cau hinh moi truong thuc te
+# Teleport + Ansible: Hướng dẫn cấu hình môi trường thực tế
 
-## Mo ta
+## Mô tả
 
-Huong dan trien khai Teleport lam SSH proxy cho Ansible tren moi truong thuc te (physical server hoac VM).
+Hướng dẫn triển khai Teleport làm SSH proxy cho Ansible trên môi trường thực tế (physical server hoặc VM).
 
-## Kien truc
+## Kiến trúc
 
 ```
                         Internet / VPN
@@ -29,42 +29,42 @@ Huong dan trien khai Teleport lam SSH proxy cho Ansible tren moi truong thuc te 
 
      +------------------+
      | Ansible Control  |  ---> Teleport proxy ---> Nodes
-     | (co tsh + ansible)|
+     | (có tsh + ansible)|
      +------------------+
 ```
 
-### 3 thanh phan chinh
+### 3 thành phần chính
 
-| Thanh phan | Vai tro | Di chay tren |
-|------------|---------|--------------|
-| Teleport Auth Server | Quan ly user, certificate, RBAC | Server rieng hoac cung Proxy |
-| Teleport Proxy | SSH proxy, WebUI, API | Server co public IP/domain |
-| Teleport Agent | SSH service tren node | Moi target node |
+| Thành phần | Vai trò | Chạy trên |
+|-----------|---------|-----------|
+| Teleport Auth Server | Quản lý user, certificate, RBAC | Server riêng hoặc chung Proxy |
+| Teleport Proxy | SSH proxy, WebUI, API | Server có public IP/domain |
+| Teleport Agent | SSH service trên node | Mỗi target node |
 
-Ansible control node co the la mot server rieng hoac chay chung voi Auth/Proxy.
+Ansible control node có thể là laptop của bạn hoặc một server riêng.
 
 ---
 
-## Phan 1: Cai dat Teleport Auth + Proxy
+## Phần 1: Cài đặt Teleport Auth + Proxy
 
-### 1.1 Yeu cau
+### 1.1 Yêu cầu
 
-- 1 server voi public IP hoac domain (vd: `ssh.example.com`)
+- 1 server với public IP hoặc domain (ví dụ: `ssh.example.com`)
 - OS: Ubuntu 22.04/24.04, Debian 12, RHEL 8/9
-- Port mo: 443 (WebUI/API), 3023 (SSH proxy)
-- DNS record tro domain den IP server
+- Port mở: 443 (WebUI/API), 3023 (SSH proxy)
+- DNS record trỏ domain đến IP server
 
-### 1.2 Cai dat Teleport
+### 1.2 Cài đặt Teleport
 
 **Ubuntu/Debian:**
 
 ```bash
-# Them repository
+# Thêm repository
 curl https://goteleport.com/static/install.sh | bash -s <version>
-# Vi du:
+# Ví dụ:
 curl https://goteleport.com/static/install.sh | bash -s v18.7.6
 
-# Hoac dung apt
+# Hoặc dùng apt
 sudo apt-get install teleport
 ```
 
@@ -75,9 +75,9 @@ sudo yum-config-manager --add-repo https://rpm.releases.teleport.dev/teleport.re
 sudo yum install teleport-18.7.6
 ```
 
-### 1.3 Cau hinh Teleport
+### 1.3 Cấu hình Teleport
 
-Tao file `/etc/teleport.yaml` tren Auth/Proxy server:
+Tạo file `/etc/teleport.yaml` trên Auth/Proxy server:
 
 ```yaml
 version: v3
@@ -91,17 +91,17 @@ teleport:
 auth_service:
   enabled: "yes"
   listen_addr: 0.0.0.0:3025
-  # Token cho node join - DOI thanh gia tri ngau nhien
+  # Token cho node join — ĐỔI thành giá trị ngẫu nhiên
   tokens:
     - "node:changeme-use-a-strong-random-token"
     - "auth:changeme-auth-join-token"
-  # Cau hinh TLS - can certificate cho domain
+  # Cấu hình TLS — cần certificate cho domain
   cluster_name: ssh.example.com
 
 proxy_service:
   enabled: "yes"
   web_listen_addr: 0.0.0.0:443
-  # Dung Let's Encrypt tu dong
+  # Dùng Let's Encrypt tự động
   acme:
     enabled: true
     email: admin@example.com
@@ -109,29 +109,29 @@ proxy_service:
   tunnel_public_addr: ssh.example.com:443
 
 ssh_service:
-  enabled: "no"    # Khong can SSH service tren Proxy server
+  enabled: "no"    # Không cần SSH service trên Proxy server
 ```
 
-### 1.4 Khoi dong Teleport
+### 1.4 Khởi động Teleport
 
 ```bash
-# Cau hinh systemd
+# Cấu hình systemd
 sudo systemctl enable teleport
 sudo systemctl start teleport
 
-# Kiem tra
+# Kiểm tra
 sudo teleport status
 ```
 
-### 1.5 Mo firewall
+### 1.5 Mở firewall
 
 ```bash
 # UFW (Ubuntu)
 sudo ufw allow 443/tcp     # WebUI + API
 sudo ufw allow 3023/tcp    # SSH proxy
-sudo ufw allow 3025/tcp    # Auth (chi mo noi bo, khong mo ra internet)
+sudo ufw allow 3025/tcp    # Auth (chỉ mở nội bộ, không mở ra internet)
 
-# Hoac firewalld (RHEL)
+# Hoặc firewalld (RHEL)
 sudo firewall-cmd --permanent --add-port=443/tcp
 sudo firewall-cmd --permanent --add-port=3023/tcp
 sudo firewall-cmd --reload
@@ -139,25 +139,25 @@ sudo firewall-cmd --reload
 
 ---
 
-## Phan 2: Cai dat Teleport Agent tren target nodes
+## Phần 2: Cài đặt Teleport Agent trên target nodes
 
-Lam tuong tu cho moi node can quan ly.
+Làm tương tự cho mỗi node cần quản lý.
 
-### 2.1 Cai dat Teleport
+### 2.1 Cài đặt Teleport
 
 ```bash
-# Cung cach cai dat nhu tren Auth/Proxy
+# Cùng cách cài đặt như trên Auth/Proxy
 curl https://goteleport.com/static/install.sh | bash -s v18.7.6
 ```
 
-### 2.2 Cau hinh Agent
+### 2.2 Cấu hình Agent
 
-Tao file `/etc/teleport.yaml` tren moi node:
+Tạo file `/etc/teleport.yaml` trên mỗi node:
 
 ```yaml
 version: v3
 teleport:
-  nodename: node-01          # DOI ten cho moi node
+  nodename: node-01          # ĐỔI tên cho mỗi node
   data_dir: /var/lib/teleport
   join_params:
     token_name: changeme-use-a-strong-random-token
@@ -177,41 +177,41 @@ ssh_service:
     role: web
 ```
 
-### 2.3 Khoi dong va kiem tra
+### 2.3 Khởi động và kiểm tra
 
 ```bash
 sudo systemctl enable teleport
 sudo systemctl start teleport
 
-# Xem log de kiem tra join
+# Xem log để kiểm tra join
 sudo journalctl -u teleport -f
 ```
 
-### 2.4 Xac nhan tren Auth server
+### 2.4 Xác nhận trên Auth server
 
 ```bash
-# Chay tren Auth/Proxy server
+# Chạy trên Auth/Proxy server
 tctl nodes ls
 ```
 
-Phai thay node moi trong danh sach.
+Phải thấy node mới trong danh sách.
 
 ---
 
-## Phan 3: Quan ly User va Role
+## Phần 3: Quản lý User và Role
 
-### 3.1 Tao user
+### 3.1 Tạo user
 
 ```bash
-# Chay tren Auth server
+# Chạy trên Auth server
 tctl users add ansible-admin --roles=editor,access
 ```
 
-Mo link output tren trinh duyet de set password va MFA.
+Mở link output trên trình duyệt để đặt mật khẩu và MFA.
 
-### 3.2 Tao role cho phep SSH login
+### 3.2 Tạo role cho phép SSH login
 
-Role mac dinh `access` co the khong cho login `root`. Tao role rieng:
+Role mặc định `access` có thể không cho login `root`. Tạo role riêng:
 
 ```bash
 cat <<'EOF' | tctl create -f
@@ -236,13 +236,13 @@ spec:
 EOF
 ```
 
-Gan role cho user:
+Gán role cho user:
 
 ```bash
 tctl users update ansible-admin --set-roles=editor,access,ansible-access
 ```
 
-### 3.3 Tao role han che (vi du: chi truy cap node production)
+### 3.3 Tạo role hạn chế (ví dụ: chỉ truy cập node production)
 
 ```bash
 cat <<'EOF' | tctl create -f
@@ -266,49 +266,49 @@ EOF
 
 ---
 
-## Phan 4: Cau hinh Ansible Control Node
+## Phần 4: Cấu hình Ansible Control Node
 
-Ansible control node co the la laptop cua ban hoac mot server rieng.
+Ansible control node có thể là laptop của bạn hoặc một server riêng.
 
-### 4.1 Cai dat
+### 4.1 Cài đặt
 
 ```bash
-# Cai dat Teleport client
+# Cài đặt Teleport client
 curl https://goteleport.com/static/install.sh | bash -s v18.7.6
 
-# Cai dat Ansible
+# Cài đặt Ansible
 pip install ansible
-# Hoac
+# Hoặc
 sudo apt install ansible
 ```
 
-### 4.2 Login vao Teleport
+### 4.2 Đăng nhập vào Teleport
 
 ```bash
 tsh login --proxy=ssh.example.com --user=ansible-admin
 ```
 
-Kiem tra:
+Kiểm tra:
 
 ```bash
 tsh status
-# Phai thay Roles: access, editor, ansible-access
-# Phai thay Logins: root, ansible
+# Phải thấy Roles: access, editor, ansible-access
+# Phải thấy Logins: root, ansible
 
 tsh ls
-# Phai thay danh sach nodes
+# Phải thấy danh sách nodes
 ```
 
-### 4.3 Tao SSH config cho Ansible
+### 4.3 Tạo SSH config cho Ansible
 
 ```bash
 mkdir -p ~/.ssh
 
-# Tu dong generate tu Teleport
+# Tự động generate từ Teleport
 tsh config > ~/.ssh/config
 ```
 
-Lenh `tsh config` se generate config dang:
+Lệnh `tsh config` sẽ generate config dạng:
 
 ```
 Host *.ssh.example.com ssh.example.com
@@ -321,7 +321,7 @@ Host *.ssh.example.com !ssh.example.com
     ProxyCommand /usr/local/bin/tsh proxy ssh --cluster=ssh.example.com --proxy=ssh.example.com:443 %r@%h:%p
 ```
 
-### 4.4 Cau hinh Ansible
+### 4.4 Cấu hình Ansible
 
 **ansible.cfg:**
 
@@ -359,101 +359,101 @@ webservers
 dbservers
 ```
 
-**Luu y:** Ten host trong inventory phai co hau to `.ssh.example.com` (match voi SSH config pattern `*.ssh.example.com`).
+**Lưu ý:** Tên host trong inventory phải có hậu tố `.ssh.example.com` (khớp với SSH config pattern `*.ssh.example.com`).
 
-### 4.5 Test
+### 4.5 Kiểm tra
 
 ```bash
-# Test SSH truc tiep
+# Kiểm tra SSH trực tiếp
 tsh ssh root@node-01 hostname
 
-# Test SSH qua config
+# Kiểm tra SSH qua config
 ssh root@node-01.ssh.example.com hostname
 
-# Test Ansible
+# Kiểm tra Ansible
 ansible all -m ping
 ```
 
 ---
 
-## Phan 5: Tu dong hoa voi Script
+## Phần 5: Tự động hoá với Script
 
-### 5.1 Script khoi tao Ansible session
+### 5.1 Script khởi tạo Ansible session
 
-Tao file `/usr/local/bin/ansible-teleport`:
+Tạo file `/usr/local/bin/ansible-teleport`:
 
 ```bash
 #!/bin/bash
-# Tu dong login Teleport va generate SSH config cho Ansible
+# Tự động login Teleport và generate SSH config cho Ansible
 
 set -e
 
 PROXY="ssh.example.com"
 USER="ansible-admin"
 
-echo "==> Login Teleport..."
+echo "==> Đăng nhập Teleport..."
 tsh login --proxy="$PROXY" --user="$USER"
 
-echo "==> Generate SSH config..."
+echo "==> Tạo SSH config..."
 mkdir -p ~/.ssh
 tsh config > ~/.ssh/config
 chmod 600 ~/.ssh/config
 
-echo "==> Ready! Checking nodes..."
+echo "==> Sẵn sàng! Kiểm tra nodes..."
 tsh ls
 
 echo ""
-echo "Run: ansible all -m ping"
+echo "Chạy: ansible all -m ping"
 ```
 
 ```bash
 chmod +x /usr/local/bin/ansible-teleport
 ```
 
-### 5.2 Ansible playbook mau
+### 5.2 Ansible playbook mẫu
 
 ```yaml
 ---
-- name: "Kiem tra trang thai he thong"
+- name: "Kiểm tra trạng thái hệ thống"
   hosts: all
   become: yes
   tasks:
-    - name: Thong tin OS
+    - name: Thông tin OS
       ansible.builtin.setup:
 
-    - name: Disk usage
+    - name: Dung lượng ổ đĩa
       ansible.builtin.command: df -h
       register: disk_info
       changed_when: false
 
-    - name: Hien thi disk
+    - name: Hiển thị ổ đĩa
       ansible.builtin.debug:
         msg: "{{ disk_info.stdout_lines }}"
 
-    - name: Uptime
+    - name: Thời gian hoạt động
       ansible.builtin.command: uptime
       register: uptime_info
       changed_when: false
 
-    - name: Hien thi uptime
+    - name: Hiển thị uptime
       ansible.builtin.debug:
         msg: "{{ uptime_info.stdout }}"
 ```
 
 ---
 
-## Phan 6: Security Best Practices
+## Phần 6: Security Best Practices
 
-### 6.1 Token quan ly
+### 6.1 Quản lý Token
 
-- **Khong dung static token trong production** - dung token tam thoi (`tctl nodes add --ttl=30m`)
-- Sau khi node join thanh cong, certificate duoc tu dong lam moi
-- Thu hoi token khi khong can: `tctl tokens rm <token>`
+- **Không dùng static token trong production** — dùng token tạm thời (`tctl nodes add --ttl=30m`)
+- Sau khi node join thành công, certificate được tự động làm mới
+- Thu hồi token khi không cần: `tctl tokens rm <token>`
 
-### 6.2 Role-based access
+### 6.2 Phân quyền theo Role
 
 ```yaml
-# Vi du: Admin duoc tat ca, Operator chi duoc deploy, Viewer chi doc
+# Ví dụ: Admin được tất cả, Operator chỉ được deploy, Viewer chỉ đọc
 kind: role
 version: v5
 metadata:
@@ -472,104 +472,104 @@ spec:
 
 ### 6.3 TLS / Certificate
 
-- Dung Let's Encrypt cho domain cong khai (cau hinh `acme` trong proxy_service)
-- Hoac dung certificate tu CA rieng
-- Khong bao gio dung `insecure: true` trong production
+- Dùng Let's Encrypt cho domain công khai (cấu hình `acme` trong proxy_service)
+- Hoặc dùng certificate từ CA riêng
+- Không bao giờ dùng `insecure: true` trong production
 
 ### 6.4 Backup Auth server
 
 ```bash
-# Backup cau hinh va keys
+# Backup cấu hình và keys
 sudo tar czf teleport-backup-$(date +%Y%m%d).tar.gz /var/lib/teleport/
 
-# Luu tru an toan (encrypted, offsite)
+# Lưu trữ an toàn (mã hoá, offsite)
 ```
 
 ### 6.5 Audit logging
 
-Teleport tu dong log tat ca SSH session. Xem:
+Teleport tự động log tất cả SSH session. Xem:
 
 ```bash
-# Danh sach session
+# Danh sách session
 tsh recordings ls
 
 # Replay session
 tsh play <session-id>
 
-# Tim kiem trong audit log
+# Tìm kiếm trong audit log
 tctl audit query --query "event = session.start"
 ```
 
 ---
 
-## Phan 7: Troubleshooting
+## Phần 7: Xử lý sự cố
 
-### Node khong join duoc
+### Node không join được
 
 ```bash
-# Tren node, xem log
+# Trên node, xem log
 sudo journalctl -u teleport -f
 
-# Kiem tra ket noi den proxy
+# Kiểm tra kết nối đến proxy
 curl -k https://ssh.example.com:443/webapi/ping
 
-# Kiem tra token tren auth server
+# Kiểm tra token trên auth server
 tctl tokens ls
 ```
 
-### SSH access denied
+### SSH bị từ chối truy cập
 
 ```bash
-# Kiem tra user roles
+# Kiểm tra user roles
 tctl get user/ansible-admin
 
-# Kiem tra role cho phep logins gi
+# Kiểm tra role cho phép logins gì
 tctl get role/ansible-access
 
-# Login lai sau khi update role
+# Đăng nhập lại sau khi update role
 tsh logout
 tsh login --proxy=ssh.example.com --user=ansible-admin
 ```
 
-### Ansible connection failed
+### Ansible kết nối thất bại
 
 ```bash
-# Kiem tra SSH config
+# Kiểm tra SSH config
 cat ~/.ssh/config
 
-# Kiem tra certificate con han
+# Kiểm tra certificate còn hạn
 tsh status
 
-# Regenerate SSH config
+# Tạo lại SSH config
 tsh config > ~/.ssh/config
 
-# Test SSH truc tiep
+# Kiểm tra SSH trực tiếp
 ssh -vvv root@node-01.ssh.example.com hostname
 ```
 
-### Certificate het han
+### Certificate hết hạn
 
 ```bash
-# Teleport certificate co TTL (mac dinh 12h)
-# Login lai de lam moi
+# Teleport certificate có TTL (mặc định 12h)
+# Đăng nhập lại để làm mới
 tsh login --proxy=ssh.example.com --user=ansible-admin
 
-# Regenerate SSH config
+# Tạo lại SSH config
 tsh config > ~/.ssh/config
 ```
 
 ---
 
-## So sanh Docker Lab vs Production
+## So sánh Docker Lab vs Production
 
-| Yeu to | Docker Lab | Production |
-|--------|-----------|------------|
+| Yếu tố | Docker Lab | Production |
+|---------|-----------|------------|
 | OS | Container (Debian) | VM/Physical server |
-| TLS | Self-signed | Let's Encrypt hoac CA rieng |
+| TLS | Self-signed | Let's Encrypt hoặc CA riêng |
 | Domain | localhost | ssh.example.com |
-| Token | Static (teleport.yaml) | Ephemeral (`tctl nodes add`) |
-| User | admin (password) | SSO/OIDC/SAML hoac MFA |
-| SSH config | Tao thu cong | `tsh config` tu dong |
+| Token | Static (teleport.yaml) | Tạm thời (`tctl nodes add`) |
+| User | admin (password) | SSO/OIDC/SAML hoặc MFA |
+| SSH config | Tạo thủ công | `tsh config` tự động |
 | Inventory | node-01, node-02 | node-01.ssh.example.com |
-| Data | Docker volume | /var/lib/teleport (backup dinh ky) |
-| Networking | Docker bridge | Firewall, VPN, security group |
+| Dữ liệu | Docker volume | /var/lib/teleport (backup định kỳ) |
+| Mạng | Docker bridge | Firewall, VPN, security group |

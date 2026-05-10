@@ -1,26 +1,26 @@
-# Ansible Lab voi Teleport
+# Ansible Lab với Teleport
 
-Lab moi truong thuc hanh Ansible thong qua Teleport SSH proxy. Gom 1 Teleport master (chay Ansible) va 2 node dich.
+Lab môi trường thực hành Ansible thông qua Teleport SSH proxy. Gồm 1 Teleport master (chạy Ansible) và 2 node đích.
 
-## Kien truc
+## Kiến trúc
 
 ```
 +---------------------------------------------------+
 |  Docker Network: lab_net                           |
 |                                                    |
 |  +-------------------+     +-------------------+  |
-|  | teleport-master   |     |     node-01        |  |
-|  | - Auth Server     |---->| SSH target (3022)  |  |
+|  | teleport-master   |     |     node-01       |  |
+|  | - Auth Server     |---->| SSH target (3022) |  |
 |  | - Proxy (WebUI)   |     +-------------------+  |
 |  | - Ansible + tsh   |     +-------------------+  |
-|  |                   |---->|     node-02        |  |
-|  +-------------------+     | SSH target (3022)  |  |
+|  |                   |---->|     node-02       |  |
+|  +-------------------+     | SSH target (3022) |  |
 |         |                  +-------------------+  |
 |   Ports: 3080, 3023, 3025                         |
 +---------------------------------------------------+
 ```
 
-## Cau truc thu muc
+## Cấu trúc thư mục
 
 ```
 ansible_lab/
@@ -28,7 +28,7 @@ ansible_lab/
   ├── Dockerfile.node         # Image node (Debian + Teleport + Python3 + Nginx + Flask)
   ├── docker-compose.yml
   ├── teleport-config/
-  │   └── teleport.yaml       # Cau hinh Teleport master
+  │   └── teleport.yaml       # Cấu hình Teleport master
   ├── ansible/
   │   ├── ansible.cfg
   │   ├── inventory.ini
@@ -47,12 +47,29 @@ ansible_lab/
   │       ├── prometheus/
   │       ├── webapp/
   │       └── common/
-  └── data/                   # Du lieu Teleport (tu tao)
+  ├── docs/                   # Tài liệu khoá học chi tiết
+  └── data/                   # Dữ liệu Teleport (tự tạo)
 ```
 
-## Cac file cau hinh
+## Tài liệu khoá học
 
-### 1. teleport.yaml (Master config)
+Xem thư mục [docs/](docs/) để học chi tiết từ cơ bản đến nâng cao:
+
+| Chủ đề | File |
+|--------|------|
+| Giới thiệu & Cài đặt Lab | [docs/00-gioi-thieu.md](docs/00-gioi-thieu.md) |
+| SSH căn bản | [docs/01-ssh-co-ban.md](docs/01-ssh-co-ban.md) |
+| Teleport căn bản | [docs/02-teleport-co-ban.md](docs/02-teleport-co-ban.md) |
+| Ansible căn bản | [docs/03-ansible-co-ban.md](docs/03-ansible-co-ban.md) |
+| Playbooks, Variables & Templates | [docs/04-ansible-playbook.md](docs/04-ansible-playbook.md) |
+| Roles & Handlers | [docs/05-ansible-roles.md](docs/05-ansible-roles.md) |
+| Ansible Modules nâng cao | [docs/06-ansible-modules-nang-cao.md](docs/06-ansible-modules-nang-cao.md) |
+| Tích hợp Teleport + Ansible | [docs/07-teleport-ansible-tich-hop.md](docs/07-teleport-ansible-tich-hop.md) |
+| Project tổng hợp & Production | [docs/08-project-tong-hop.md](docs/08-project-tong-hop.md) |
+
+## Các file cấu hình
+
+### 1. teleport.yaml (Cấu hình Master)
 
 ```yaml
 teleport:
@@ -75,7 +92,7 @@ ssh_service:
   enabled: "yes"
 ```
 
-### 2. Dockerfile (Master image)
+### 2. Dockerfile (Image Master)
 
 ```dockerfile
 FROM public.ecr.aws/gravitational/teleport-distroless:18.7.6 AS teleport-src
@@ -98,12 +115,12 @@ ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
-# Install docker-systemctl-replacement to mock systemd for Ansible
+# Cài docker-systemctl-replacement để giả lập systemd cho Ansible
 RUN curl -kL https://raw.githubusercontent.com/gdraheim/docker-systemctl-replacement/master/files/docker/systemctl3.py -o /usr/bin/systemctl && \
     chmod +x /usr/bin/systemctl
 ```
 
-### 3. Dockerfile.node (Node image)
+### 3. Dockerfile.node (Image Node)
 
 ```dockerfile
 FROM public.ecr.aws/gravitational/teleport-distroless:18.7.6 AS teleport-src
@@ -125,7 +142,7 @@ RUN apt-get update && \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install docker-systemctl-replacement to mock systemd for Ansible
+# Cài docker-systemctl-replacement để giả lập systemd cho Ansible
 RUN wget --no-check-certificate https://raw.githubusercontent.com/gdraheim/docker-systemctl-replacement/master/files/docker/systemctl3.py -O /usr/bin/systemctl && \
     chmod +x /usr/bin/systemctl
 ```
@@ -231,39 +248,39 @@ ansible_python_interpreter=/usr/bin/python3
 ansible_port=3022
 ```
 
-## Quy trinh khoi chay
+## Quy trình khởi chạy
 
-### Buoc 1: Build va khoi dong
+### Bước 1: Build và khởi động
 
 ```bash
 docker compose build
 docker compose up -d
 ```
 
-Doi master khoi dong xong (~15s):
+Đợi master khởi động xong (~15s):
 
 ```bash
 docker logs -f teleport-master
-# Doi thay: "Auth Server started"
+# Đợi thấy: "Auth Server started"
 ```
 
-### Buoc 2: Kiem tra node da join
+### Bước 2: Kiểm tra node đã join
 
 ```bash
 docker exec -it teleport-master tctl --auth-server=localhost:3025 nodes ls
 ```
 
-Phai thay `node-01`, `node-02`, va `teleport-master`.
+Phải thấy `node-01`, `node-02`, và `teleport-master`.
 
-### Buoc 3: Tao user admin
+### Bước 3: Tạo user admin
 
 ```bash
 docker exec -it teleport-master tctl --auth-server=localhost:3025 users add admin --roles=editor,access
 ```
 
-Mo WebUI tai `https://localhost:3080`, dung link output de set password.
+Mở WebUI tại `https://localhost:3080`, dùng link output để đặt mật khẩu.
 
-### Buoc 4: Tao role cho phep SSH login root
+### Bước 4: Tạo role cho phép SSH login root
 
 ```bash
 docker exec -it teleport-master bash -c 'cat <<EOF | tctl --auth-server=localhost:3025 create -f
@@ -281,21 +298,21 @@ spec:
 EOF'
 ```
 
-Gan role cho user:
+Gán role cho user:
 
 ```bash
 docker exec -it teleport-master tctl --auth-server=localhost:3025 users update admin --set-roles=editor,access,node-access
 ```
 
-### Buoc 5: Login Teleport
+### Bước 5: Đăng nhập Teleport
 
 ```bash
 docker exec -it teleport-master tsh login --proxy=localhost:3080 --user=admin
 ```
 
-Kiem tra: phai thay `Roles: access, editor, node-access` va `Logins: root`.
+Kiểm tra: phải thấy `Roles: access, editor, node-access` và `Logins: root`.
 
-### Buoc 6: Tao SSH config cho Ansible
+### Bước 6: Tạo SSH config cho Ansible
 
 ```bash
 docker exec -it teleport-master bash -c 'mkdir -p ~/.ssh && cat > ~/.ssh/config <<EOF
@@ -310,22 +327,22 @@ EOF
 chmod 600 ~/.ssh/config'
 ```
 
-### Buoc 7: Test SSH va Ansible
+### Bước 7: Kiểm tra SSH và Ansible
 
 ```bash
 docker exec -it teleport-master bash
 
-# Test SSH
+# Kiểm tra SSH
 tsh ssh root@node-01 hostname
 
-# Test Ansible
+# Kiểm tra Ansible
 cd /home/teleport/ansible
 ansible all -m ping
 ```
 
-## Deploy voi Ansible
+## Deploy với Ansible
 
-Xem chi tiet tai [ANSIBLE_LAB_GUIDE.md](ANSIBLE_LAB_GUIDE.md)
+Xem chi tiết tại [ANSIBLE_LAB_GUIDE.md](ANSIBLE_LAB_GUIDE.md)
 
 ```bash
 cd /home/teleport/ansible
@@ -344,18 +361,18 @@ ansible-playbook playbooks/04-deploy-fullstack.yaml
 ansible-playbook playbooks/05-health-check.yaml
 ```
 
-## Cac loi thuong gap
+## Các lỗi thường gặp
 
-| Loi | Nguyen nhan | Fix |
-|-----|-------------|-----|
-| token expired or not found | Token join het han | `auth_service.tokens` trong teleport.yaml phai match `--token` trong docker-compose |
-| access denied to root | User khong co role cho phep login root | Tao role `node-access` voi `logins: [root]` |
-| fork/exec /sbin/nologin | Node image distroless khong co shell | Dung `Dockerfile.node` (Debian base) |
-| Permission denied (publickey) | SSH config thieu IdentityFile/CertificateFile | Tao `~/.ssh/config` dung format |
-| role 'nginx' not found | `roles_path` khong dung | Them `roles_path = ./roles` trong ansible.cfg |
-| duplicate nodes | Restart node ma khong xoa data cu | `docker compose down` roi `rm -rf data/` truoc khi start lai |
+| Lỗi | Nguyên nhân | Cách sửa |
+|-----|-------------|----------|
+| token expired or not found | Token join hết hạn | `auth_service.tokens` trong teleport.yaml phải khớp `--token` trong docker-compose |
+| access denied to root | User không có role cho phép login root | Tạo role `node-access` với `logins: [root]` |
+| fork/exec /sbin/nologin | Node image distroless không có shell | Dùng `Dockerfile.node` (Debian base) |
+| Permission denied (publickey) | SSH config thiếu IdentityFile/CertificateFile | Tạo `~/.ssh/config` đúng format |
+| role 'nginx' not found | `roles_path` không đúng | Thêm `roles_path = ./roles` trong ansible.cfg |
+| duplicate nodes | Restart node mà không xoá data cũ | `docker compose down` rồi `rm -rf data/` trước khi start lại |
 
-## Reset toan bo lab
+## Reset toàn bộ lab
 
 ```bash
 docker compose down
@@ -364,17 +381,17 @@ docker compose build
 docker compose up -d
 ```
 
-Sau do lap lai tu Buoc 3.
+Sau đó lặp lại từ Bước 3.
 
 ## Ports
 
-| Port | Dich vu |
+| Port | Dịch vụ |
 |------|---------|
 | 3080 | Teleport WebUI |
 | 3023 | Teleport SSH Proxy |
 | 3025 | Teleport Auth Server |
-| 3022 | Teleport SSH tren node (dung cho Ansible) |
-| 80 | Nginx tren node (sau khi deploy) |
-| 9100 | Node Exporter tren node (sau khi deploy) |
-| 9090 | Prometheus tren master (sau khi deploy) |
-| 5000 | Flask webapp tren node (sau khi deploy) |
+| 3022 | Teleport SSH trên node (dùng cho Ansible) |
+| 80 | Nginx trên node (sau khi deploy) |
+| 9100 | Node Exporter trên node (sau khi deploy) |
+| 9090 | Prometheus trên master (sau khi deploy) |
+| 5000 | Flask webapp trên node (sau khi deploy) |
