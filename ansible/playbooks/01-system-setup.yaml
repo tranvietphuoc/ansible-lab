@@ -1,0 +1,22 @@
+---
+- name: "System Setup - Cai dat packages co ban"
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install common packages
+      ansible.builtin.apt:
+        name: "{{ common_packages }}"
+        state: present
+
+    - name: Set timezone
+      ansible.builtin.timezone:
+        name: "{{ timezone }}"
+
+    - name: Show system info
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} ready ({{ ansible_distribution }} {{ ansible_distribution_version }})"

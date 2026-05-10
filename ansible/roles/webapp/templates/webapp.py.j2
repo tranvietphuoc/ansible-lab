@@ -1,0 +1,46 @@
+from flask import Flask, jsonify, request
+import socket
+import datetime
+import sqlite3
+import os
+
+app = Flask(__name__)
+DB_PATH = os.path.join(os.path.dirname(__file__), "visitors.db")
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("CREATE TABLE IF NOT EXISTS visitors (id INTEGER PRIMARY KEY, ip TEXT, time TEXT)")
+    conn.commit()
+    conn.close()
+
+init_db()
+
+@app.route("/")
+def index():
+    conn = sqlite3.connect(DB_PATH)
+    count = conn.execute("SELECT COUNT(*) FROM visitors").fetchone()[0]
+    conn.close()
+    return jsonify({
+        "app": "{{ webapp_name }}",
+        "host": socket.gethostname(),
+        "time": datetime.datetime.now().isoformat(),
+        "visitors": count
+    })
+
+@app.route("/visit", methods=["POST"])
+def visit():
+    ip = request.remote_addr
+    now = datetime.datetime.now().isoformat()
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("INSERT INTO visitors (ip, time) VALUES (?, ?)", (ip, now))
+    conn.commit()
+    count = conn.execute("SELECT COUNT(*) FROM visitors").fetchone()[0]
+    conn.close()
+    return jsonify({"status": "recorded", "total_visitors": count})
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "healthy"})
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port={{ webapp_port }})

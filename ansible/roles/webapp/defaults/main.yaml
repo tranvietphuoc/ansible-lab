@@ -1,0 +1,4 @@
+---
+webapp_port: 5000
+webapp_dir: /opt/webapp
+webapp_name: "Teleport Lab App"

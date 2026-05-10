@@ -1,0 +1,37 @@
+---
+- name: "Deploy Monitoring Stack"
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install curl (for downloading binaries)
+      ansible.builtin.apt:
+        name: curl
+        state: present
+        update_cache: yes
+
+- name: "Deploy Node Exporter"
+  hosts: webservers
+  become: yes
+  roles:
+    - node-exporter
+  post_tasks:
+    - name: Verify node_exporter is running
+      ansible.builtin.uri:
+        url: "http://localhost:{{ node_exporter_port | default(9100) }}/"
+        status_code: 200
+
+- name: "Deploy Prometheus"
+  hosts: monitoring
+  become: yes
+  roles:
+    - prometheus
+  post_tasks:
+    - name: Verify prometheus is running
+      ansible.builtin.uri:
+        url: "http://localhost:{{ prometheus_port | default(9090) }}/-/healthy"
+        status_code: 200
+      register: prom_check
+
+    - name: Show prometheus targets
+      ansible.builtin.debug:
+        msg: "Prometheus healthy at localhost:{{ prometheus_port | default(9090) }}"

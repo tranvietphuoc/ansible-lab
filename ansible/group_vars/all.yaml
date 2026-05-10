@@ -1,0 +1,7 @@
+---
+timezone: "Asia/Ho_Chi_Minh"
+common_packages:
+  - curl
+  - htop
+  - vim
+  - ca-certificates

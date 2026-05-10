@@ -1,0 +1,65 @@
+services:
+  teleport-master:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: teleport-master
+    ports:
+      - "3080:3080" # webui
+      - "3023:3023" # ssh proxy
+      - "3025:3025" # auth service
+
+    volumes:
+      - ./teleport-config/teleport.yaml:/etc/teleport/teleport.yaml:z
+      - ./ansible:/home/teleport/ansible:z
+      - ./data/master:/var/lib/teleport:z
+      - ./data/tsh:/root/.tsh:z
+
+    networks:
+      - lab_net
+
+    command: teleport start --config=/etc/teleport/teleport.yaml
+
+  node-01:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    container_name: node-01
+    hostname: node-01
+    entrypoint: ["/usr/bin/dumb-init"]
+    volumes:
+      - ./data/node01:/var/lib/teleport:z
+    networks:
+      - lab_net
+    command: >
+      /usr/local/bin/teleport start
+      --roles=node
+      --auth-server=teleport-master:3025
+      --token=secret-lab-token
+      --nodename=node-01
+    depends_on:
+      - teleport-master
+
+  node-02:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    container_name: node-02
+    hostname: node-02
+    entrypoint: ["/usr/bin/dumb-init"]
+    volumes:
+      - ./data/node02:/var/lib/teleport:z
+    networks:
+      - lab_net
+    command: >
+      /usr/local/bin/teleport start
+      --roles=node
+      --auth-server=teleport-master:3025
+      --token=secret-lab-token
+      --nodename=node-02
+    depends_on:
+      - teleport-master
+
+networks:
+  lab_net:
+    driver: bridge

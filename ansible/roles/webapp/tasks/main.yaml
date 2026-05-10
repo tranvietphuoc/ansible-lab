@@ -1,0 +1,27 @@
+---
+- name: Create app directory
+  ansible.builtin.file:
+    path: "{{ webapp_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Deploy Flask app
+  ansible.builtin.template:
+    src: webapp.py.j2
+    dest: "{{ webapp_dir }}/app.py"
+    mode: "0644"
+  notify: Restart webapp
+
+- name: Deploy systemd service
+  ansible.builtin.template:
+    src: webapp.service.j2
+    dest: /etc/systemd/system/webapp.service
+    mode: "0644"
+  notify: Restart webapp
+
+- name: Start webapp
+  ansible.builtin.systemd:
+    name: webapp
+    state: started
+    enabled: yes
+    daemon_reload: yes

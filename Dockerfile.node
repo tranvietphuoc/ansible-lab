@@ -1,0 +1,22 @@
+FROM public.ecr.aws/gravitational/teleport-distroless:18.7.6 AS teleport-src
+
+FROM debian:bookworm-slim
+
+COPY --from=teleport-src /usr/local/bin/teleport /usr/local/bin/teleport
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3 \
+    python3-apt \
+    python3-flask \
+    curl \
+    wget \
+    ca-certificates \
+    nginx \
+    dumb-init \
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install docker-systemctl-replacement to mock systemd for Ansible
+RUN wget --no-check-certificate https://raw.githubusercontent.com/gdraheim/docker-systemctl-replacement/master/files/docker/systemctl3.py -O /usr/bin/systemctl && \
+    chmod +x /usr/bin/systemctl

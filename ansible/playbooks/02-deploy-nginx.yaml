@@ -1,0 +1,16 @@
+---
+- name: "Deploy Nginx Web Server"
+  hosts: webservers
+  become: yes
+  roles:
+    - nginx
+  post_tasks:
+    - name: Verify nginx is responding
+      ansible.builtin.uri:
+        url: "http://localhost:{{ nginx_port }}"
+        status_code: 200
+      register: result
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "Nginx running on {{ inventory_hostname }}:{{ nginx_port }} (HTTP {{ result.status }})"

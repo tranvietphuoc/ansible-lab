@@ -1,0 +1,33 @@
+---
+- name: "Deploy Full Stack (Webapp + Nginx Reverse Proxy)"
+  hosts: webservers
+  become: yes
+  pre_tasks:
+    - name: Ensure Flask is installed
+      ansible.builtin.apt:
+        name: python3-flask
+        state: present
+        update_cache: yes
+
+  roles:
+    - webapp
+    - role: nginx
+      vars:
+        nginx_config_template: "nginx-reverse-proxy.conf.j2"
+
+  post_tasks:
+    - name: Health check - webapp
+      ansible.builtin.uri:
+        url: "http://localhost:{{ webapp_port | default(5000) }}/health"
+        status_code: 200
+      register: app_health
+
+    - name: Health check - nginx proxy
+      ansible.builtin.uri:
+        url: "http://localhost:{{ nginx_port | default(80) }}"
+        status_code: 200
+      register: proxy_health
+
+    - name: Show results
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} - App: {{ app_health.status }}, Proxy: {{ proxy_health.status }}"

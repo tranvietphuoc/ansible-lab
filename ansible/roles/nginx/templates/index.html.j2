@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ site_title }} - {{ inventory_hostname }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #1a1a2e; color: #e0e0e0; }
+        .container { max-width: 600px; margin: auto; background: #16213e; padding: 30px; border-radius: 8px; }
+        h1 { color: #0f3460; background: #e94560; padding: 10px 20px; border-radius: 4px; display: inline-block; }
+        .info { margin-top: 20px; }
+        .info dt { font-weight: bold; color: #e94560; }
+        .info dd { margin-left: 0; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{ site_title }}</h1>
+        <dl class="info">
+            <dt>Hostname</dt>
+            <dd>{{ inventory_hostname }}</dd>
+            <dt>Node</dt>
+            <dd>{{ ansible_hostname }}</dd>
+            <dt>OS</dt>
+            <dd>{{ ansible_distribution }} {{ ansible_distribution_version }}</dd>
+            <dt>IP Address</dt>
+            <dd>{{ ansible_default_ipv4.address | default('N/A') }}</dd>
+            <dt>Deployed at</dt>
+            <dd>{{ ansible_date_time.iso8601 }}</dd>
+        </dl>
+    </div>
+</body>
+</html>

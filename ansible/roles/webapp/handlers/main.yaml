@@ -1,0 +1,6 @@
+---
+- name: Restart webapp
+  ansible.builtin.systemd:
+    name: webapp
+    state: restarted
+    daemon_reload: yes

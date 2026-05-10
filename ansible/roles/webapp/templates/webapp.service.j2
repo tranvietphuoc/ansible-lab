@@ -1,0 +1,12 @@
+[Unit]
+Description=Web App (Flask)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory={{ webapp_dir }}
+ExecStart=/usr/bin/python3 {{ webapp_dir }}/app.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

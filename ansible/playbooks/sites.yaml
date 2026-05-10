@@ -1,0 +1,11 @@
+---
+- name: "Kiểm tra hệ thống Lab"
+  hosts: targets
+  tasks:
+    - name: "Xem thông tin máy"
+      shell: "uname -a"
+      register: sys_info
+
+    - name: "In kết quả"
+      debug:
+        msg: "Máy {{ inventory_hostname }} đang chạy: {{ sys_info.stdout }}"

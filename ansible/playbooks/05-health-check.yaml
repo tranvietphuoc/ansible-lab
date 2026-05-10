@@ -1,0 +1,42 @@
+---
+- name: "Health Check - Tong bao cao trang thai he thong"
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Check nginx status
+      block:
+        - name: Get nginx response
+          ansible.builtin.uri:
+            url: "http://localhost:{{ nginx_port | default(80) }}"
+            status_code: 200
+          register: nginx_check
+      rescue:
+        - name: Mark nginx as failed
+          ansible.builtin.set_fact:
+            nginx_check: { "status": "FAILED" }
+
+    - name: Check webapp status
+      block:
+        - name: Get webapp response
+          ansible.builtin.uri:
+            url: "http://localhost:{{ webapp_port | default(5000) }}/health"
+            status_code: 200
+          register: webapp_check
+      rescue:
+        - name: Mark webapp as failed
+          ansible.builtin.set_fact:
+            webapp_check: { "status": "FAILED" }
+
+    - name: Check node_exporter
+      ansible.builtin.shell: "curl -s http://localhost:9100/metrics | head -1"
+      register: exporter_check
+      changed_when: false
+      failed_when: false
+
+    - name: Show report
+      ansible.builtin.debug:
+        msg: |
+          === {{ inventory_hostname }} ===
+          Nginx:    {{ nginx_check.status | default('N/A') }}
+          Webapp:   {{ webapp_check.status | default('N/A') }}
+          Exporter: {{ 'OK' if 'node_exporter' in exporter_check.stdout else 'DOWN' }}
