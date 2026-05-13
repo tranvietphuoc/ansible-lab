@@ -1,0 +1,19 @@
+# Teleport Roles Configuration
+# File này định nghĩa các role dùng trong lab.
+# Áp dụng bằng: tctl create -f /etc/teleport/roles.yaml
+# Tham khảo: docs/02-teleport-co-ban.md (Phần 2: Users & Roles — RBAC)
+
+---
+# node-access: Cho phép SSH vào tất cả nodes với user root/admin.
+# Đây là role chính dùng cho Ansible trong lab.
+kind: role
+version: v5
+metadata:
+  name: node-access
+spec:
+  allow:
+    logins: [root, admin]
+    node_labels:
+      "*": "*"
+  options:
+    max_session_ttl: 30h0m0s

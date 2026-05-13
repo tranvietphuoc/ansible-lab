@@ -41,23 +41,11 @@ step3_create_user() {
     read -r
 }
 
-# --- Step 4: Create role node-access and assign to admin ---
+# --- Step 4: Create role from roles.yaml and assign to admin ---
 step4_create_role() {
-    log_info "Step 4: Creating role 'node-access' and assigning to user '${USER}'..."
+    log_info "Step 4: Creating role from /etc/teleport/roles.yaml..."
 
-    docker exec -i "${MASTER}" bash -c 'cat <<EOF | tctl --auth-server='"${AUTH_SERVER}"' create -f
-kind: role
-version: v5
-metadata:
-  name: node-access
-spec:
-  allow:
-    logins: [root, admin]
-    node_labels:
-      "*": "*"
-  options:
-    max_session_ttl: 30h0m0s
-EOF'
+    docker exec -i "${MASTER}" tctl --auth-server="${AUTH_SERVER}" create -f /etc/teleport/roles.yaml
 
     docker exec -i "${MASTER}" tctl --auth-server="${AUTH_SERVER}" users update "${USER}" --set-roles=editor,access,node-access
 

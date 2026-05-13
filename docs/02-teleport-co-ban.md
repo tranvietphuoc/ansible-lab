@@ -157,8 +157,49 @@ Mở link trong browser để set password cho developer.
 
 **Bài 3: Tạo role hạn chế**
 
+Có 2 cách tạo role:
+
+**Cách 1: Từ file YAML (khuyên dùng)**
+
+Lab đã có sẵn file role tại `/etc/teleport/roles.yaml`. Xem nội dung:
+
 ```bash
-# Role chỉ được xem, không được chạy lệnh nguy hiểm
+cat /etc/teleport/roles.yaml
+```
+
+Áp dụng role từ file:
+
+```bash
+tctl --auth-server=localhost:3025 create -f /etc/teleport/roles.yaml
+```
+
+Bạn có thể thêm role mới vào file này hoặc tạo file riêng. Ví dụ tạo file `viewer-role.yaml`:
+
+```yaml
+kind: role
+version: v5
+metadata:
+  name: viewer
+spec:
+  allow:
+    logins: [viewer]
+    node_labels:
+      "*": "*"
+  options:
+    max_session_ttl: 1h0m0s
+    forward_agent: false
+    ssh_file_copy: false
+```
+
+Rồi áp dụng:
+
+```bash
+tctl --auth-server=localhost:3025 create -f viewer-role.yaml
+```
+
+**Cách 2: Inline qua heredoc**
+
+```bash
 cat <<'EOF' | tctl --auth-server=localhost:3025 create -f
 kind: role
 version: v5
@@ -175,6 +216,27 @@ spec:
     ssh_file_copy: false
 EOF
 ```
+
+**Giải thích cấu trúc role YAML:**
+
+```yaml
+kind: role                    # Loại tài nguyên (luôn là "role")
+version: v5                   # Phiên bản schema
+metadata:
+  name: node-access           # Tên role (dùng khi gán cho user)
+spec:
+  allow:                      # Quyền được CẤP
+    logins: [root, admin]     # Linux login được dùng (whoami trên server)
+    node_labels:
+      "*": "*"                # Được SSH vào nodes có label nào ("*" = tất cả)
+  options:
+    max_session_ttl: 30h0m0s  # Thời gian tối đa của 1 SSH session
+```
+
+**Lưu ý quan trọng:**
+- `logins` không phải Teleport user, mà là **Linux user** trên server đích
+- `node_labels: "*": "*"` cho phép vào mọi node - trong production nên giới hạn
+- `max_session_ttl` nên ngắn trong production (4-8 giờ), chỉ dùng 30h trong lab
 
 **Bài 4: Kiểm tra RBAC**
 
