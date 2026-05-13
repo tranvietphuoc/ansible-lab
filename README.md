@@ -272,72 +272,29 @@ docker exec -it teleport-master tctl --auth-server=localhost:3025 nodes ls
 
 Phải thấy `node-01`, `node-02`, và `teleport-master`.
 
-### Bước 3: Tạo user admin
+### Bước 3: Cài đặt SSH cho Ansible (tự động)
+
+Script `setup-ssh.sh` tự động thực hiện từ tạo user đến verify Ansible:
 
 ```bash
-docker exec -it teleport-master tctl --auth-server=localhost:3025 users add admin --roles=editor,access
+./setup-ssh.sh
 ```
 
-Mở WebUI tại `https://localhost:3080`, dùng link output để đặt mật khẩu.
+Script sẽ lần lượt:
+1. Tạo user `admin` - in ra link đặt password, mở browser và đặt xong nhấn Enter
+2. Tạo role `node-access` (cho phép SSH login root) và gán cho user
+3. Đăng nhập Teleport qua `tsh login`
+4. Tạo SSH config cho Ansible
+5. Kiểm tra SSH và `ansible all -m ping`
 
-### Bước 4: Tạo role cho phép SSH login root
-
-```bash
-docker exec -it teleport-master bash -c 'cat <<EOF | tctl --auth-server=localhost:3025 create -f
-kind: role
-version: v5
-metadata:
-  name: node-access
-spec:
-  allow:
-    logins: [root, admin]
-    node_labels:
-      "*": "*"
-  options:
-    max_session_ttl: 30h0m0s
-EOF'
-```
-
-Gán role cho user:
+**Chạy từng bước riêng** (nếu cần):
 
 ```bash
-docker exec -it teleport-master tctl --auth-server=localhost:3025 users update admin --set-roles=editor,access,node-access
-```
-
-### Bước 5: Đăng nhập Teleport
-
-```bash
-docker exec -it teleport-master tsh login --proxy=localhost:3080 --user=admin
-```
-
-Kiểm tra: phải thấy `Roles: access, editor, node-access` và `Logins: root`.
-
-### Bước 6: Tạo SSH config cho Ansible
-
-```bash
-docker exec -it teleport-master bash -c 'mkdir -p ~/.ssh && cat > ~/.ssh/config <<EOF
-Host node-01 node-02 teleport-master
-    UserKnownHostsFile /root/.tsh/known_hosts
-    IdentityFile /root/.tsh/keys/localhost/admin
-    CertificateFile /root/.tsh/keys/localhost/admin-ssh/teleport-master-cert.pub
-    Port 3022
-    StrictHostKeyChecking no
-    ProxyCommand /usr/local/bin/tsh proxy ssh --cluster=teleport-master --proxy=localhost:3080 %r@%h:%p
-EOF
-chmod 600 ~/.ssh/config'
-```
-
-### Bước 7: Kiểm tra SSH và Ansible
-
-```bash
-docker exec -it teleport-master bash
-
-# Kiểm tra SSH
-tsh ssh root@node-01 hostname
-
-# Kiểm tra Ansible
-cd /home/teleport/ansible
-ansible all -m ping
+./setup-ssh.sh --user      # Tạo user admin
+./setup-ssh.sh --role      # Tạo role node-access
+./setup-ssh.sh --login     # Đăng nhập Teleport
+./setup-ssh.sh --ssh       # Tạo SSH config
+./setup-ssh.sh --verify    # Kiểm tra SSH + Ansible
 ```
 
 ## Deploy với Ansible
@@ -381,7 +338,7 @@ docker compose build
 docker compose up -d
 ```
 
-Sau đó lặp lại từ Bước 3.
+Sau đó chạy lại `./setup-ssh.sh`.
 
 ## Ports
 
