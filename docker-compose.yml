@@ -11,6 +11,7 @@ services:
 
     volumes:
       - ./teleport-config/teleport.yaml:/etc/teleport/teleport.yaml:z
+      - ./teleport-config/roles.yaml:/etc/teleport/roles.yaml:z
       - ./ansible:/home/teleport/ansible:z
       - ./data/master:/var/lib/teleport:z
       - ./data/tsh:/root/.tsh:z

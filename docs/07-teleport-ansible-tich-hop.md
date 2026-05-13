@@ -233,6 +233,7 @@ ansible-playbook playbooks/02-deploy-nginx.yaml --step
 
 ```bash
 # 1. Tạo 3 roles
+# Mỗi role có thể lưu thành file riêng và áp dụng bằng: tctl create -f <file>
 
 # Role admin — toàn quyền
 cat <<'EOF' | tctl --auth-server=localhost:3025 create -f

@@ -28,7 +28,8 @@ ansible_lab/
   ├── Dockerfile.node         # Image node (Debian + Teleport + Python3 + Nginx + Flask)
   ├── docker-compose.yml
   ├── teleport-config/
-  │   └── teleport.yaml       # Cấu hình Teleport master
+  │   ├── teleport.yaml       # Cấu hình Teleport master
+  │   └── roles.yaml          # Cấu hình Teleport roles (RBAC)
   ├── ansible/
   │   ├── ansible.cfg
   │   ├── inventory.ini
